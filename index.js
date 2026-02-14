@@ -1,4 +1,6 @@
 const dotenv = require("dotenv");
+dotenv.config({ path: "./.env" });
+
 const mongoose = require("mongoose");
 const app = require("./app");
 
@@ -7,8 +9,6 @@ process.on("uncaughtException", (err) => {
   console.log("Unhandled Exception!");
   process.exit(1);
 });
-
-dotenv.config({ path: "./.env" });
 
 const port = process.env.PORT;
 

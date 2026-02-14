@@ -1,6 +1,17 @@
-const Task = require("../models/taskModel");
+const Task = require("../models/task.model");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
+const mongoose = require("mongoose");
+
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const filterAllowedFields = (obj, ...allowedFields) => {
+  const newObj = {};
+  Object.keys(obj).forEach((key) => {
+    if (allowedFields.includes(key)) newObj[key] = obj[key];
+  });
+  return newObj;
+};
 
 /**
  * CREATE TASK
@@ -52,7 +63,7 @@ exports.getMyTasks = catchAsync(async (req, res, next) => {
     Task.countDocuments({ user: req.user.id }),
   ]);
 
-  res.status(200).json({
+  res.status(201).json({
     status: "success",
     results: tasks.length,
     pagination: {
@@ -69,6 +80,10 @@ exports.getMyTasks = catchAsync(async (req, res, next) => {
  * GET SINGLE TASK
  */
 exports.getTask = catchAsync(async (req, res, next) => {
+  if (!isValidObjectId(req.params.id)) {
+    return next(new AppError("Invalid task ID", 400));
+  }
+
   const task = await Task.findOne({
     _id: req.params.id,
     user: req.user.id,
@@ -94,9 +109,26 @@ exports.updateTask = catchAsync(async (req, res, next) => {
     return next(new AppError("Update body cannot be empty", 400));
   }
 
+  if (!isValidObjectId(req.params.id)) {
+    return next(new AppError("Invalid task ID", 400));
+  }
+
+  const filteredBody = filterAllowedFields(
+    req.body,
+    "title",
+    "description",
+    "completed",
+    "priority",
+    "dueDate",
+  );
+
+  if (Object.keys(filteredBody).length === 0) {
+    return next(new AppError("No valid fields to update", 400));
+  }
+
   const task = await Task.findOneAndUpdate(
     { _id: req.params.id, user: req.user.id },
-    req.body,
+    filteredBody,
     { new: true, runValidators: true },
   );
 
@@ -114,6 +146,10 @@ exports.updateTask = catchAsync(async (req, res, next) => {
  * DELETE TASK (HARD DELETE)
  */
 exports.deleteTask = catchAsync(async (req, res, next) => {
+  if (!isValidObjectId(req.params.id)) {
+    return next(new AppError("Invalid task ID", 400));
+  }
+
   const task = await Task.findOneAndDelete({
     _id: req.params.id,
     user: req.user.id,
